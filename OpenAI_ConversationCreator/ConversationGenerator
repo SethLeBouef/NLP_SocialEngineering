@@ -1,0 +1,115 @@
+import openai
+import os
+from dotenv import load_dotenv
+import pandas as pd
+import random
+import time
+from tqdm import tqdm
+
+# Load OpenAI API key
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+client = openai.Client(api_key=api_key)
+
+# Define personas and bait types
+recruiter_personas = [
+    "an overly friendly recruiter trying to build quick rapport",
+    "a formal, HR-style recruiter using corporate language",
+    "a vague but persuasive executive recruiter",
+    "a recruiter acting with urgency and pressure",
+    "a recruiter claiming to be part of a stealth VC firm"
+]
+
+target_personas = [
+    "a junior developer eager to impress",
+    "a cautious and experienced cybersecurity analyst",
+    "a busy senior engineer who gives short answers",
+    "a skeptical DevOps manager who suspects phishing",
+    "a compliance officer who rarely responds to recruiters"
+]
+
+bait_types = [
+    "an urgent DevSecOps role with a $180K salary",
+    "a remote classified project for a government partner",
+    "an invitation-only executive track at a stealth startup",
+    "an equity-funded AI lab that requires NDA access",
+    "a fast-track cybersecurity grant that requires quick screening"
+]
+
+# Updated system prompt with explicit separator
+system_prompt = """
+You are generating realistic LinkedIn chat conversations between:
+- A fake recruiter attempting a social engineering attack
+- A target employee in tech, cybersecurity, or operations
+
+Each conversation should be:
+- 6 to 10 back-and-forth messages (3–5 turns per speaker)
+- Professional or casual in tone
+- Each one ends with one of:
+  [successful], [partial], or [failure]
+
+Output 5 conversations per batch.
+Separate each conversation with a line that contains exactly: ===
+"""
+
+def generate_user_prompt():
+    recruiter = random.choice(recruiter_personas)
+    target = random.choice(target_personas)
+    bait = random.choice(bait_types)
+    return f"""
+The recruiter is {recruiter}.
+The target is {target}.
+The bait is {bait}.
+
+Generate 5 clearly separated LinkedIn-style conversations.
+Each one must end with [successful], [partial], or [failure].
+Use === to separate each conversation.
+"""
+
+# Storage
+conversations = []
+labels = []
+
+# Progress bar
+pbar = tqdm(total=600)
+
+while len(conversations) < 600:
+    try:
+        print(f"\n🧠 Generating new batch... Current count: {len(conversations)}")
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=1.0,
+            max_tokens=2000,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": generate_user_prompt()}
+            ]
+        )
+
+        raw = response.choices[0].message.content
+        blocks = raw.strip().split("\n===\n")
+
+        for block in blocks:
+            lines = block.strip().split("\n")
+            if not lines:
+                continue
+            label_line = lines[-1].strip().lower()
+            if any(lbl in label_line for lbl in ["[successful]", "[partial]", "[failure]"]):
+                label = label_line.replace("[", "").replace("]", "").strip()
+                convo = "\n".join(lines[:-1]).strip()
+                if convo and label:
+                    conversations.append(convo)
+                    labels.append(label)
+                    pbar.update(1)
+                    print(f" Added: {label.upper()} — Total: {len(conversations)}")
+                if len(conversations) >= 600:
+                    break
+
+    except Exception as e:
+        print(f"⚠️ Error: {e} — retrying in 10 seconds...")
+        time.sleep(10)
+
+# Save to CSV
+df = pd.DataFrame({"conversation": conversations, "label": labels})
+df.to_csv("cleaned_se_conversations_600.csv", index=False)
+print("\n Saved 600 conversations to cleaned_se_conversations_600.csv")

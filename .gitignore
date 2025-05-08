@@ -1,0 +1,22 @@
+# Ignore environment variables
+.env
+
+# Ignore system files
+__pycache__/
+*.pyc
+
+# Ignore model checkpoints, logs, and other outputs
+results/
+logs/
+*.ckpt
+
+# Ignore notebooks (if needed)
+*.ipynb_checkpoints/
+
+# Ignore large datasets (optional)
+*.csv
+*.xlsx
+
+# Ignore virtual environments (if used)
+venv/
+.env/
