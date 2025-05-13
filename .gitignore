@@ -19,4 +19,8 @@ logs/
 
 # Ignore virtual environments (if used)
 venv/
-.env/
+.env/.DS_Store
+~
+saved_roberta_model/model.safetensors
+saved_roberta_model/model.safetensors
+saved_roberta_model/model.safetensors
